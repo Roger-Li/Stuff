@@ -93,6 +93,16 @@ def log_targ(m,y,x,beta,beta_0,sigma_0_inv):
     log_pi=s-(beta-beta_0).T*sigma_0_inv*(beta-beta_0)/2
 
     return log_pi
+    
+def post_credible_interval(data, confidence=0.95):    # compute posterior credible interval
+    a = 1.0*np.array(data)
+    n = len(a)
+    m, se = np.mean(a), stats.tstd(a)
+    
+    
+    h = se * stats.t._ppf((1+confidence)/2., n-1)
+    return m, m-h, m+h
+    
 
 def bayes_logreg(m,y,x,beta_0,sigma_0_inv,niter=10000,burnin=1000, \
                  print_every=1000,retune=100,verbose=True):
@@ -101,6 +111,8 @@ def bayes_logreg(m,y,x,beta_0,sigma_0_inv,niter=10000,burnin=1000, \
     v = np.matrix(np.diag(np.ones(2)))  
     beta_curt = np.zeros(shape = (2,1))
     accept_rate = 0
+
+
 
     # tuning
     while accept_rate < 0.3 or accept_rate > 0.6:
@@ -175,10 +187,47 @@ def bayes_logreg(m,y,x,beta_0,sigma_0_inv,niter=10000,burnin=1000, \
     percentile[:,1] = np.percentile(a = beta_1, q = pp)
     np.savetxt("results/blr_res_" + str(sim_num) + '.csv', percentile, delimiter=",")
     
-#    plt.plot(beta_store[:,0])
-#    plt.plot(beta_store[:,1])
-#    plt.show()
     
+    '''Traceplot and Posterior density plot''' 
+    data0 = np.squeeze(np.asarray(beta_store[:,0]))
+    data1 = np.squeeze(np.asarray(beta_store[:,1]))
+    # this create the kernel, given an array it will estimate the probability over that values
+    kde0 = gaussian_kde( data0 )
+    kde1 = gaussian_kde( data1 )
+    kde0.covariance_factor = lambda : .25
+    kde0._compute_covariance()
+    kde1.covariance_factor = lambda : .25
+    kde1._compute_covariance()
+    # these are the values over wich your kernel will be evaluated\
+    dist_space0 = np.linspace( min(data0), max(data0), 100 )
+    dist_space1 = np.linspace( min(data1), max(data1), 100 )
+    
+    # Now plot    
+    f, axarr = plt.subplots(2, sharex=False)
+    axarr[0].plot(data0)
+    axarr[0].set_title('Traceplot of beta_0')
+    axarr[1].plot(dist_space0, kde0(dist_space0) )
+    axarr[1].set_title('Posterior density of beta_0')
+    f.savefig('Beta_0.pdf')
+    
+    f1, axarr1 = plt.subplots(2, sharex=False)
+    axarr1[0].plot(data1)
+    axarr1[0].set_title('Traceplot of beta_0')
+    axarr1[1].plot(dist_space1, kde1(dist_space1) )
+    axarr1[1].set_title('Posterior density of beta_0')
+    f1.savefig('Beta_1.pdf')
+    
+
+    
+    
+    
+    ''' Calculate posterior credible intervals for beta'''    
+    for j in range(2):
+        me, l,r = post_credible_interval(beta_store[:,j], confidence = 0.95)
+        print "The 95% posterior credible interval for beta_",j,"is :", (l, r)
+ 
+    
+
 
     
         
@@ -186,4 +235,4 @@ def bayes_logreg(m,y,x,beta_0,sigma_0_inv,niter=10000,burnin=1000, \
 
 
 bayes_logreg(m,y,x,beta_0,sigma_0_inv,niter=10000,burnin=1000, \
-                 print_every=1000,retune=100,verbose=True)       
+                 print_every=1000,retune=100,verbose=True)    
