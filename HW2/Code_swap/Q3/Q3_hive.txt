@@ -1,0 +1,24 @@
+$ hive
+
+# Create Table 
+hive> CREATE TABLE Q3 (group INT, value FLOAT) 
+hive> ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t' STORED AS TEXTFILE;
+
+# Load Data 
+hive> LOAD DATA INPATH '/user/hadoop/input/groups.txt' OVERWRITE INTO TABLE Q3;
+
+
+# Get STATS
+hive> INSERT OVERWRITE DIRECTORY '/user/hadoop/output/'
+    > SELECT 
+    > group, 
+    > avg(value), 
+    > variance(value) 
+    > FROM Q3
+    > GROUP by group;
+
+# Quite Hive
+hive>quit;
+
+# Copy Data to Local
+$ hadoop fs -get /user/hadoop/output/ output
